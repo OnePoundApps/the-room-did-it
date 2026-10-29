@@ -1,7 +1,28 @@
 <!DOCTYPE html>
-<html>
-<body style="font-family:sans-serif;text-align:center;padding-top:40vh">
-  <h1>The Room Did It — coming soon</h1>
-  <p>One Pound Apps</p>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Room Did It — Day 1</title>
+<style>
+  body { margin:0; font-family: Arial, sans-serif; background:#111; color:#eee; }
+  #overlay {
+    position: fixed; top:0; left:0; width:100%; padding:14px;
+    background:rgba(0,0,0,0.65); font-size:18px; z-index:10; text-align:center;
+  }
+  #startBtn {
+    position: fixed; top:45%; left:50%; transform:translate(-50%,-50%);
+    font-size:22px; padding:16px 32px; border:none; border-radius:8px;
+    background:#f5c518; color:#111; font-weight:bold; z-index:11; cursor:pointer;
+  }
+</style>
+<script type="importmap">
+{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js" } }
+</script>
+</head>
+<body>
+<div id="overlay">THE ROOM DID IT — Day 1: find the evidence marker on your table</div>
+<button id="startBtn">ENTER THE CRIME SCENE</button>
+<script type="module" src="./main.js"></script>
 </body>
 </html>
