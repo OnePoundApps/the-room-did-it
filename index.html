@@ -3,27 +3,29 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>The Room Did It — Day 1 Hand Grab Test</title>
+<title>The Room Did It — Real Surface Evidence Test v7</title>
 <style>
-  body { margin:0; font-family: Arial, sans-serif; background:#111; color:#eee; }
-  #overlay {
-    position: fixed; top:0; left:0; width:100%; padding:14px;
-    background:rgba(0,0,0,0.65); font-size:18px; z-index:10; text-align:center;
-    box-sizing:border-box;
-  }
-  #startBtn {
-    position: fixed; top:45%; left:50%; transform:translate(-50%,-50%);
-    font-size:22px; padding:16px 32px; border:none; border-radius:8px;
-    background:#f5c518; color:#111; font-weight:bold; z-index:11; cursor:pointer;
-  }
+  body { margin: 0; font-family: Arial, sans-serif; background: #10151e; color: #f0f2f5; }
+  #overlay { position: fixed; top: 0; left: 0; width: 100%; box-sizing: border-box;
+    padding: 14px; text-align: center; background: rgba(0,0,0,0.7); font-size: 17px; }
+  #instructions { position: fixed; left: 50%; top: 24%; transform: translateX(-50%);
+    width: min(90vw, 500px); text-align: center; line-height: 1.6; }
+  #startBtn { position: fixed; left: 50%; top: 67%; transform: translate(-50%, -50%);
+    border: 0; border-radius: 12px; background: #f5c518; color: #111;
+    font-size: 21px; font-weight: bold; padding: 18px 26px; cursor: pointer; z-index: 11; }
+  #startBtn:disabled { opacity: 0.65; }
 </style>
 <script type="importmap">
 { "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js" } }
 </script>
 </head>
 <body>
-<div id="overlay">THE ROOM DID IT — Day 1: hand grab test</div>
+<div id="overlay">THE ROOM DID IT — Real Surface Evidence Test v7</div>
+<div id="instructions"><h2>Modern London • Crime Scene Prototype</h2>
+<p>Look at a real table or sofa for a pill bottle, the floor for a knife, and a wall for a blood trace.</p>
+<p>Clues only appear when the Quest reports a detected surface. There is no floating fallback.<br>
+Put controllers down and use your hands to pinch, pick up and release.</p></div>
 <button id="startBtn">ENTER THE CRIME SCENE</button>
-<script type="module" src="./main.js?v=6"></script>
+<script type="module" src="./main.js?v=7"></script>
 </body>
 </html>
