@@ -1,12 +1,11 @@
 import * as THREE from 'three';
 
-// ================= THE ROOM DID IT — main.js v3 =================
 const overlay = document.getElementById('overlay');
 const startBtn = document.getElementById('startBtn');
 const status = (t) => { overlay.textContent = t; };
 
 let renderer, scene, camera, session, refSpace, viewerSpace, hitSource = null;
-let marker = null, collected = false, startTime = 0, fallbackUsed = false;
+let marker = null, collected = false, startTime = 0, fallbackUsed = false, frameCount = 0;
 
 startBtn.addEventListener('click', startAR);
 
@@ -37,9 +36,7 @@ async function startAR() {
   try {
     viewerSpace = await session.requestReferenceSpace('viewer');
     hitSource = await session.requestHitTestSource({ space: viewerSpace });
-  } catch (e) {
-    status('hit-test unavailable, using fallback mode');
-  }
+  } catch (e) { status('hit-test unavailable, fallback mode'); }
 
   buildMarker();
   startBtn.style.display = 'none';
@@ -51,7 +48,7 @@ async function startAR() {
 function buildMarker() {
   const g = new THREE.Group();
   const gem = new THREE.Mesh(
-     new THREE.OctahedronGeometry(0.07),
+    new THREE.OctahedronGeometry(0.07),
     new THREE.MeshStandardMaterial({ color: 0xf5c518, emissive: 0x8a6d00, roughness: 0.3 })
   );
   gem.position.y = 0.06;
@@ -69,8 +66,9 @@ function buildMarker() {
 function onFrame(time, frame) {
   if (!frame) return;
   renderer.render(scene, camera);
+  frameCount++;
 
-  // --- A) plane detection: real table plane ---
+  // A) planes
   const planes = frame.detectedPlanes || new Set();
   let tablePos = null, best = Infinity;
   for (const plane of planes) {
@@ -83,7 +81,7 @@ function onFrame(time, frame) {
     if (d < best) { best = d; tablePos = pose.transform.position; }
   }
 
-  // --- B) hit-test: forward ray from your head ---
+  // B) hit-test
   let hitPos = null;
   if (hitSource) {
     const hits = frame.getHitTestResults(hitSource);
@@ -93,17 +91,16 @@ function onFrame(time, frame) {
     }
   }
 
-  // --- C) guaranteed fallback: float in front of your face after 6s ---
-  let mode = '';
-  let target = null;
+  // C) fallback
+  let mode = '', target = null;
   if (tablePos) { target = tablePos; mode = 'PLANE'; }
   else if (hitPos) { target = hitPos; mode = 'HIT-TEST'; }
   else if (performance.now() - startTime > 6000 && !fallbackUsed) {
     fallbackUsed = true;
-    const camPos = new THREE.Vector3(), dir = new THREE.Vector3();
-    camera.getWorldPosition(camPos);
+    const cp = new THREE.Vector3(), dir = new THREE.Vector3();
+    camera.getWorldPosition(cp);
     camera.getWorldDirection(dir);
-    target = new THREE.Vector3(camPos.x + dir.x * 0.8, Math.max(0.6, camPos.y - 0.3), camPos.z + dir.z * 0.8);
+    target = new THREE.Vector3(cp.x + dir.x * 0.8, Math.max(0.6, cp.y - 0.3), cp.z + dir.z * 0.8);
     mode = 'FALLBACK';
   }
 
@@ -111,29 +108,44 @@ function onFrame(time, frame) {
     marker.visible = true;
     marker.position.set(target.x, target.y + 0.02 + Math.sin(time / 400) * 0.01, target.z);
     marker.rotation.y += 0.02;
-        let inputs = 0, hands = 0;
-    for (const s of session.inputSources) { inputs++; if (s.hand) hands++; }
-    status('Evidence (' + mode + ') inputs:' + inputs + ' hands:' + hands + ' — pinch near it!');
   }
 
-  // --- pinch to collect ---
+  // D) hands — live debug numbers
+  let inputs = 0, hands = 0, pinchTxt = '-', nearTxt = '-';
   for (const src of session.inputSources) {
+    inputs++;
     if (!src.hand) continue;
+    hands++;
     const thumb = frame.getJointPose(src.hand.get('thumb-tip'), refSpace);
     const index = frame.getJointPose(src.hand.get('index-finger-tip'), refSpace);
-    if (!thumb || !index || !marker.visible || collected) continue;
+    if (!thumb || !index) continue;
     const pinch = Math.hypot(
       thumb.transform.position.x - index.transform.position.x,
       thumb.transform.position.y - index.transform.position.y,
       thumb.transform.position.z - index.transform.position.z);
-    const near = Math.hypot(
-      thumb.transform.position.x - marker.position.x,
-      thumb.transform.position.y - marker.position.y,
-      thumb.transform.position.z - marker.position.z);
-    if (pinch < 0.03 && near < 0.3) {
-      collected = true;
-      marker.children[0].material.color.set(0xffffff);
-      status('EVIDENCE COLLECTED ✅ mode was ' + mode + ' — report this to your AI partner!');
+    pinchTxt = pinch.toFixed(3);
+    if (marker.visible && !collected) {
+      const near = Math.hypot(
+        index.transform.position.x - marker.position.x,
+        index.transform.position.y - marker.position.y,
+        index.transform.position.z - marker.position.z);
+      nearTxt = near.toFixed(2);
+      if (pinch < 0.05 && near < 0.35) {
+        collected = true;
+        marker.children[0].material.color.set(0xffffff);
+      }
+    }
+  }
+
+  // status (updated 5x per second)
+  if (frameCount % 12 === 0) {
+    const ht = (session.enabledFeatures && Array.from(session.enabledFeatures).includes('hand-tracking')) ? 'on' : 'OFF';
+    if (collected) {
+      status('EVIDENCE COLLECTED ✅ — Day 1 COMPLETE! mode was ' + mode);
+    } else {
+      status('ht:' + ht + ' inputs:' + inputs + ' hands:' + hands +
+        ' pinch:' + pinchTxt + ' near:' + nearTxt +
+        (marker.visible ? ' [' + mode + ' placed — pinch!]' : ' [scanning]'));
     }
   }
 }
