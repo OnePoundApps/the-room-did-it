@@ -38,9 +38,12 @@ async function startAR() {
 
   try {
     viewerSpace = await session.requestReferenceSpace('viewer');
-    hitSource = await session.requestHitTestSource({
+        hitSource = await session.requestHitTestSource({
       space: viewerSpace,
-      offsetRay: { origin: { x: 0, y: 0, z: 0 }, direction: { x: 0, y: -0.5734, z: -0.8192 } }
+      offsetRay: new XRRay(
+        { x: 0, y: 0, z: 0 },
+        { x: 0, y: -0.5734, z: -0.8192 }
+      )
     });
   } catch (e) {
     status('hit-test failed: ' + e.message); return;
