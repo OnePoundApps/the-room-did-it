@@ -1,16 +1,47 @@
 import * as THREE from 'three';
 
-const overlay = document.getElementById('overlay');
 const startBtn = document.getElementById('startBtn');
-const status = (t) => { overlay.textContent = t; };
 
 let renderer, scene, camera, session, refSpace, viewerSpace, hitSource = null;
 let marker = null, collected = false, startTime = 0, fallbackUsed = false, frameCount = 0;
 
+// ---------- IN-WORLD HUD (works in the headset, no DOM overlay needed) ----------
+let hudCanvas, hudCtx, hudTex;
+
+function buildHUD() {
+  hudCanvas = document.createElement('canvas');
+  hudCanvas.width = 1024; hudCanvas.height = 192;
+  hudCtx = hudCanvas.getContext('2d');
+  hudTex = new THREE.CanvasTexture(hudCanvas);
+  const mesh = new THREE.Mesh(
+    new THREE.PlaneGeometry(0.7, 0.131),
+    new THREE.MeshBasicMaterial({ map: hudTex, transparent: true, depthTest: false })
+  );
+  mesh.position.set(0, -0.28, -0.9);
+  mesh.renderOrder = 999;
+  camera.add(mesh);
+  scene.add(camera); // camera must be in the scene for its children to render
+  status('Welcome, detective — look at your table');
+}
+
+function status(t) {
+  if (!hudCtx) return;
+  hudCtx.clearRect(0, 0, 1024, 192);
+  hudCtx.fillStyle = 'rgba(0,0,0,0.6)';
+  hudCtx.fillRect(0, 0, 1024, 192);
+  hudCtx.fillStyle = '#ffffff';
+  hudCtx.font = 'bold 44px Arial';
+  hudCtx.textAlign = 'center';
+  hudCtx.textBaseline = 'middle';
+  hudCtx.fillText(t, 512, 96, 980);
+  hudTex.needsUpdate = true;
+}
+
+// ---------- SETUP ----------
 startBtn.addEventListener('click', startAR);
 
 async function startAR() {
-  if (!navigator.xr) { status('WebXR not available'); return; }
+  if (!navigator.xr) { startBtn.textContent = 'WebXR not available'; return; }
 
   renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
   renderer.setSize(innerWidth, innerHeight);
@@ -25,10 +56,9 @@ async function startAR() {
   try {
     session = await navigator.xr.requestSession('immersive-ar', {
       requiredFeatures: ['local-floor', 'hit-test'],
-      optionalFeatures: ['plane-detection', 'hand-tracking', 'dom-overlay'],
-      domOverlay: { root: document.getElementById('overlay') }
+      optionalFeatures: ['plane-detection', 'hand-tracking']
     });
-  } catch (e) { status('Could not start AR: ' + e.message); return; }
+  } catch (e) { startBtn.textContent = 'AR failed: ' + e.message; return; }
 
   renderer.xr.setSession(session);
   refSpace = await session.requestReferenceSpace('local-floor');
@@ -36,12 +66,12 @@ async function startAR() {
   try {
     viewerSpace = await session.requestReferenceSpace('viewer');
     hitSource = await session.requestHitTestSource({ space: viewerSpace });
-  } catch (e) { status('hit-test unavailable, fallback mode'); }
+  } catch (e) { /* fallback mode handles it */ }
 
   buildMarker();
+  buildHUD();
   startBtn.style.display = 'none';
   startTime = performance.now();
-  status('Scanning… look at your table');
   renderer.setAnimationLoop(onFrame);
 }
 
@@ -110,7 +140,7 @@ function onFrame(time, frame) {
     marker.rotation.y += 0.02;
   }
 
-  // D) hands — live debug numbers
+  // D) hands + live numbers
   let inputs = 0, hands = 0, pinchTxt = '-', nearTxt = '-';
   for (const src of session.inputSources) {
     inputs++;
@@ -137,15 +167,14 @@ function onFrame(time, frame) {
     }
   }
 
-  // status (updated 5x per second)
   if (frameCount % 12 === 0) {
     const ht = (session.enabledFeatures && Array.from(session.enabledFeatures).includes('hand-tracking')) ? 'on' : 'OFF';
     if (collected) {
-      status('EVIDENCE COLLECTED ✅ — Day 1 COMPLETE! mode was ' + mode);
+      status('EVIDENCE COLLECTED! Day 1 complete — mode was ' + mode);
     } else {
       status('ht:' + ht + ' inputs:' + inputs + ' hands:' + hands +
         ' pinch:' + pinchTxt + ' near:' + nearTxt +
-        (marker.visible ? ' [' + mode + ' placed — pinch!]' : ' [scanning]'));
+        (marker.visible ? ' [' + mode + ' — pinch!]' : ' [scanning]'));
     }
   }
 }
