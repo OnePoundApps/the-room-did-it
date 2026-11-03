@@ -51,12 +51,12 @@ async function startAR() {
 function buildMarker() {
   const g = new THREE.Group();
   const gem = new THREE.Mesh(
-    new THREE.OctahedronGeometry(0.045),
+     new THREE.OctahedronGeometry(0.07),
     new THREE.MeshStandardMaterial({ color: 0xf5c518, emissive: 0x8a6d00, roughness: 0.3 })
   );
   gem.position.y = 0.06;
   const ring = new THREE.Mesh(
-    new THREE.TorusGeometry(0.09, 0.008, 12, 40),
+    new THREE.TorusGeometry(0.14, 0.01, 12, 40),
     new THREE.MeshBasicMaterial({ color: 0xffffff })
   );
   ring.rotation.x = -Math.PI / 2;
@@ -68,6 +68,7 @@ function buildMarker() {
 
 function onFrame(time, frame) {
   if (!frame) return;
+  renderer.render(scene, camera);
 
   // --- A) plane detection: real table plane ---
   const planes = frame.detectedPlanes || new Set();
