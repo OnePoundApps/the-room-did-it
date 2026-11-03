@@ -111,7 +111,9 @@ function onFrame(time, frame) {
     marker.visible = true;
     marker.position.set(target.x, target.y + 0.02 + Math.sin(time / 400) * 0.01, target.z);
     marker.rotation.y += 0.02;
-    status('Evidence placed (' + mode + ') — pinch near it! planes:' + planes.size);
+        let inputs = 0, hands = 0;
+    for (const s of session.inputSources) { inputs++; if (s.hand) hands++; }
+    status('Evidence (' + mode + ') inputs:' + inputs + ' hands:' + hands + ' — pinch near it!');
   }
 
   // --- pinch to collect ---
