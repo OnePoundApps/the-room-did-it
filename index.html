@@ -3,29 +3,37 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>The Room Did It — Real Surface Evidence Test v7</title>
+<meta name="theme-color" content="#09151e">
+<title>The Room Did It — Case 01: After the Party</title>
 <style>
-  body { margin: 0; font-family: Arial, sans-serif; background: #10151e; color: #f0f2f5; }
+  body { margin: 0; font-family: Arial, sans-serif; background: #0a1420; color: #eaf2fa; }
   #overlay { position: fixed; top: 0; left: 0; width: 100%; box-sizing: border-box;
-    padding: 14px; text-align: center; background: rgba(0,0,0,0.7); font-size: 17px; }
-  #instructions { position: fixed; left: 50%; top: 24%; transform: translateX(-50%);
-    width: min(90vw, 500px); text-align: center; line-height: 1.6; }
-  #startBtn { position: fixed; left: 50%; top: 67%; transform: translate(-50%, -50%);
+    padding: 14px; text-align: center; background: rgba(0,0,0,0.77); font-size: 15px; }
+  #instructions { position: fixed; left: 50%; top: 23%; transform: translateX(-50%);
+    width: min(89vw, 620px); text-align: center; line-height: 1.55; }
+  #instructions h1 { font-size: clamp(27px, 6vw, 46px); margin: 4px 0; }
+  #instructions small { color: #67d6e5; letter-spacing: 0.12em; }
+  #instructions p { color: #d2e2ec; }
+  #startBtn { position: fixed; left: 50%; top: 72%; transform: translate(-50%, -50%);
     border: 0; border-radius: 12px; background: #f5c518; color: #111;
-    font-size: 21px; font-weight: bold; padding: 18px 26px; cursor: pointer; z-index: 11; }
-  #startBtn:disabled { opacity: 0.65; }
+    font-size: 20px; font-weight: bold; padding: 17px 29px; cursor: pointer; z-index: 11; }
+  #startBtn:disabled { opacity: .65; }
 </style>
 <script type="importmap">
 { "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js" } }
 </script>
 </head>
 <body>
-<div id="overlay">THE ROOM DID IT — Real Surface Evidence Test v7</div>
-<div id="instructions"><h2>Modern London • Crime Scene Prototype</h2>
-<p>Look at a real table or sofa for a pill bottle, the floor for a knife, and a wall for a blood trace.</p>
-<p>Clues only appear when the Quest reports a detected surface. There is no floating fallback.<br>
-Put controllers down and use your hands to pinch, pick up and release.</p></div>
+<div id="overlay">THE ROOM DID IT — Case 01: After the Party</div>
+<div id="instructions">
+  <small>ONE POUND APPS PRESENTS / LONDON 2026</small>
+  <h1>THE ROOM DID IT</h1>
+  <h2>CASE 01: AFTER THE PARTY</h2>
+  <p>Aaron Malik is dead after a party in Dalston. Was it the drugs, the knife, or an assault?</p>
+  <p>In your Quest 3S, look at your real table, floor and wall to reveal clues. Pinch to pick up; release to file evidence.</p>
+  <p><strong>Pinch empty space to open your notebook.</strong> Look at a notebook button and pinch to answer. Wrong accusations can end the case.</p>
+</div>
 <button id="startBtn">ENTER THE CRIME SCENE</button>
-<script type="module" src="./main.js?v=7"></script>
+<script type="module" src="./main.js?v=8"></script>
 </body>
 </html>

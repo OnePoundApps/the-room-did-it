@@ -1,8 +1,8 @@
 import * as THREE from 'three';
 
-// THE ROOM DID IT — v7 / confirmed real-surface placement.
+// THE ROOM DID IT — v8 / After the Party: interactive London 2026 case.
 // No automatic near-face fallback. Keeps the working v6 hand-pinch and gaze grab.
-// Test clues: bottle -> table/sofa, knife -> floor, blood pattern -> wall.
+// Preserve proven v7 surface placement and grip; add a gaze+pinch case notebook.
 const startBtn = document.getElementById('startBtn');
 const overlay = document.getElementById('overlay');
 const instructions = document.getElementById('instructions');
@@ -15,6 +15,13 @@ let leftPinch = '-', rightPinch = '-';
 let visiblePlanes = 0, visibleHits = 0;
 let gazeTarget = null, grabbedBy = null, grabbedEvidence = null, grabMethod = '';
 let lastNotice = '', noticeUntil = 0;
+let notebookMesh, notebookCanvas, notebookCtx, notebookTexture;
+let notebookOpen = false, notebookPage = 'brief', notebookHover = null;
+let notebookButtons = [], notebookSelectedClue = 'table';
+let deductionStep = 0, points = 100, gameResult = null, caseFeedback = '';
+let accusationConfirm = null, noteMode = false;
+const noteRaycaster = new THREE.Raycaster();
+const NOTE_W = 1400, NOTE_H = 1024;
 const handStates = new WeakMap();
 const stableCandidates = new Map();
 const evidence = [];
@@ -68,13 +75,14 @@ async function startAR() {
 
     buildEvidence();
     buildHUD();
+    buildNotebook();
     startBtn.style.display = 'none';
     if (instructions) instructions.style.display = 'none';
     startedAt = performance.now();
     lastNotice = 'Look at your REAL table, floor and wall to place evidence.';
 
     session.addEventListener('selectstart', event => {
-      if (event.inputSource?.hand) attemptGrab(event.inputSource, 'XR SELECT');
+      if (event.inputSource?.hand) handlePinch(event.inputSource, 'XR SELECT');
     });
     session.addEventListener('selectend', event => {
       if (event.inputSource === grabbedBy) finishGrab();
@@ -184,9 +192,9 @@ function buildHUD() {
   hud.renderOrder = 1000;
   hud.frustumCulled = false;
   scene.add(hud);
-  paintHUD(['THE ROOM DID IT  |  REAL SURFACE TEST',
-    'Look at a table, floor or wall. No floating fallback.',
-    'Put controllers aside. Use hands to grab clues.']);
+  paintHUD(['CASE 01  |  AFTER THE PARTY  |  LONDON 2026',
+    'Look at real surfaces to reveal 3 pieces of evidence.',
+    'Pinch EMPTY space to open your case notebook.']);
 }
 
 function paintHUD(lines) {
@@ -213,7 +221,7 @@ function updateHeadAndHUD(viewerPose) {
   headPosition.set(p.x, p.y, p.z);
   headRotation.set(q.x, q.y, q.z, q.w);
   gazeDirection.set(0, 0, -1).applyQuaternion(headRotation).normalize();
-  hud.position.copy(headPosition).add(temp.set(0, -0.27, -0.99).applyQuaternion(headRotation));
+  hud.position.copy(headPosition).add(temp.set(0, -0.37, -1.05).applyQuaternion(headRotation));
   hud.quaternion.copy(headRotation);
 }
 
@@ -331,6 +339,8 @@ function placeAtSurface(candidate) {
   item.group.position.copy(candidate.position).addScaledVector(surfaceNormal, 0.012);
   item.group.quaternion.copy(quat);
   item.group.visible = true;
+  item.surfacePosition = item.group.position.clone();
+  item.surfaceQuaternion = item.group.quaternion.clone();
   item.placed = true;
   item.placedBy = candidate.method;
   stableCandidates.delete(item.id);
@@ -389,23 +399,32 @@ function getHandState(src) {
   return state;
 }
 
-function attemptGrab(src, method) {
-  if (grabbedBy) return;
-  pinchCount++;
+// WebXR selectstart and thumb/index joint thresholds may both fire for the same pinch.
+// Debounce them together to avoid selecting two notebook choices at once.
+function handlePinch(src, method) {
   const state = getHandState(src);
-  const direct = state.hasPose && state.near <= GRAB_DISTANCE ? state.nearItem : null;
-  const item = direct || gazeTarget;
-  if (!item || item.collected) {
-    lastNotice = 'PINCH detected! Look at an evidence item first.';
-    noticeUntil = performance.now() + 1800;
+  const now = performance.now();
+  if (now - (state.lastPinchAt ?? -10000) < 330) return;
+  state.lastPinchAt = now;
+  pinchCount++;
+
+  if (notebookOpen) {
+    if (notebookHover) activateNotebookButton(notebookHover);
+    else { caseFeedback = 'LOOK AT A NOTEBOOK BUTTON, THEN PINCH'; paintNotebook(); }
     return;
   }
+  if (gameResult) { openNotebook(); return; }
+  if (grabbedBy) return;
+  const direct = state.hasPose && state.near <= GRAB_DISTANCE ? state.nearItem : null;
+  const item = direct || gazeTarget;
+  if (!item || item.collected) { openNotebook(); return; }
+
   grabbedBy = src;
   grabbedEvidence = item;
   grabMethod = direct ? 'DIRECT PINCH' : 'GAZE + PINCH';
   if (item.ring) item.ring.visible = false;
   if (state.hasPose) item.group.position.copy(state.midpoint);
-  lastNotice = 'Holding ' + item.name + ': move your hand and RELEASE';
+  lastNotice = 'Holding ' + item.name + ': RELEASE to file evidence';
   noticeUntil = 0;
   console.info('Grabbed', item.name, method, grabMethod);
 }
@@ -417,8 +436,12 @@ function finishGrab() {
   grabbedEvidence = null;
   item.collected = true;
   item.group.visible = false; // notebook pickup, not floating evidence left behind
-  lastNotice = item.name + ' added to case notebook';
+  lastNotice = item.name + ' filed in your notebook';
   noticeUntil = performance.now() + 2800;
+  if (evidence.every(e => e.collected)) {
+    lastNotice = 'ALL EVIDENCE COLLECTED: investigate in your notebook';
+    openNotebook();
+  }
   console.info('Collected', item.name);
 }
 
@@ -458,7 +481,7 @@ function processHands(frame) {
     if (src.handedness === 'right') rightPinch = dist.toFixed(3) + 'm';
     if (!state.closed && dist <= PINCH_DOWN) {
       state.closed = true;
-      attemptGrab(src, 'JOINT DISTANCE');
+      handlePinch(src, 'JOINT DISTANCE');
     } else if (state.closed && dist >= PINCH_UP) {
       state.closed = false;
       if (grabbedBy === src) finishGrab();
@@ -474,33 +497,378 @@ function updateFeedback(now) {
   const placed = evidence.filter(e => e.placed).length;
   const collected = evidence.filter(e => e.collected).length;
   const awaiting = evidence.filter(e => !e.placed).map(e => e.surface).join(' / ');
-  if (collected === evidence.length) {
-    paintHUD(['CASE 01 | SURFACE TEST COMPLETE',
-      'All 3 clues collected: bottle, knife and blood trace.',
-      'Hands + real surface placement + pickup validated.']);
-  } else if (grabbedEvidence) {
-    paintHUD(['HOLDING: ' + grabbedEvidence.name,
-      'Move your hand to inspect the evidence.',
-      'RELEASE pinch to add it to the notebook.']);
+  hud.visible = !notebookOpen;
+  if (notebookOpen) return;
+  if (grabbedEvidence) {
+    paintHUD(['AFTER THE PARTY  |  HOLDING ' + grabbedEvidence.name,
+      'Move hand to inspect. RELEASE to file in notebook.',
+      'Evidence ' + collected + '/3 | Hands ' + poseHands]);
   } else if (now < noticeUntil) {
-    paintHUD(['THE ROOM DID IT | ' + collected + '/3 COLLECTED',
+    paintHUD(['AFTER THE PARTY  |  ' + collected + '/3 CLUES COLLECTED',
       lastNotice,
-      'Planes: ' + visiblePlanes + ' | Hits: ' + visibleHits + ' | Hands: ' + poseHands]);
+      'Pinch EMPTY space to open the notebook.']);
   } else if (placed === 0 && now - startedAt > 9000 && visiblePlanes === 0 && visibleHits === 0) {
     paintHUD(['NO REAL SURFACES REPORTED',
-      'Quest room scan may not be available to WebXR.',
-      'Planes: 0 | Hits: 0 | Look at surfaces. No fake placement.']);
+      'Look at your real table, floor or wall.',
+      'Planes 0 | Hits 0 | No floating evidence fallback.']);
   } else {
-    paintHUD(['THE ROOM DID IT | PLACED ' + placed + '/3 | COLLECTED ' + collected + '/3',
+    paintHUD(['CASE 01  |  AFTER THE PARTY  |  ' + collected + '/3 CLUES',
       'Planes ' + visiblePlanes + ' | Hits ' + visibleHits +
         ' | Hands ' + poseHands + ' | Pinches ' + pinchCount,
-      gazeTarget ? 'TARGET: ' + gazeTarget.name + ' - PINCH TO GRAB'
-        : (awaiting ? 'LOOK AT: ' + awaiting : 'Look at a clue, then PINCH')]);
+      gazeTarget ? 'LOOKING AT ' + gazeTarget.name + ' — PINCH TO PICK UP'
+        : (awaiting ? 'SCAN: ' + awaiting + ' | PINCH EMPTY SPACE FOR NOTEBOOK'
+          : 'All clues placed. PINCH EMPTY space for notebook.')]);
   }
   for (const item of evidence) {
     if (item.ring && item.placed && !item.collected && item !== grabbedEvidence) {
       item.ring.material.color.set(item === gazeTarget ? 0x56edff : 0xf5c518);
     }
+  }
+}
+
+// ---------------- CASE 01: AFTER THE PARTY ----------------
+// All scene surfaces and hand-grab mechanics above are inherited from v7.
+// The notebook is a world-locked WebGL canvas. It needs no DOM overlay/controllers.
+const CASE_EVIDENCE = {
+  table: {
+    title: 'PRESCRIPTION BOTTLE',
+    text: 'Loose tablets were found by the drinks. Their presence suggests drug use but cannot establish a fatal overdose.',
+    report: 'Toxicology: traces found, below the level expected to have caused the death.'
+  },
+  floor: {
+    title: 'KITCHEN KNIFE',
+    text: 'A knife lies near the victim. It has no visible blood transfer and no matching wound has been identified.',
+    report: 'Pathology: no penetrating stab injury. The knife may be unrelated.'
+  },
+  wall: {
+    title: 'WALL BLOOD TRACE',
+    text: 'A small blood pattern appears near head height. It suggests contact or impact, but the stain alone cannot identify the assailant.',
+    report: 'Pathology: severe blunt-force head injury. Compare it against the wall trace and witness timing.'
+  }
+};
+const SUSPECTS = ['MIA SHAH (FLATMATE)', 'LEWIS WARD (FRIEND)', 'BEN CARTER (DJ)'];
+const QUESTIONS = [
+  {
+    title: '01 / CAUSE OF DEATH',
+    question: 'What best explains Aaron Malik\'s death?',
+    answers: ['Drug overdose', 'Stab wound', 'Blunt-force head trauma'],
+    correct: 2, cost: 20,
+    proof: 'The pathology note identifies head trauma. Drugs and the knife are distractions.'
+  },
+  {
+    title: '02 / EVIDENCE TEST',
+    question: 'Which finding most clearly weakens the overdose theory?',
+    answers: ['A knife was on the floor', 'Toxicology was nonfatal', 'There was blood on the wall'],
+    correct: 1, cost: 15,
+    proof: 'The preliminary toxicology report does not support a fatal overdose.'
+  },
+  {
+    title: '03 / FINAL ACCUSATION',
+    question: 'Who should face the final accusation?',
+    answers: SUSPECTS,
+    correct: 1, cost: 50,
+    proof: 'Lewis returned at 02:09, lied about his alibi and was heard arguing just before the impact.'
+  }
+];
+const wrongDeductions = new Set();
+let cursorMesh = null;
+
+function buildNotebook() {
+  notebookCanvas = document.createElement('canvas');
+  notebookCanvas.width = NOTE_W;
+  notebookCanvas.height = NOTE_H;
+  notebookCtx = notebookCanvas.getContext('2d');
+  notebookTexture = new THREE.CanvasTexture(notebookCanvas);
+  notebookTexture.colorSpace = THREE.SRGBColorSpace;
+  notebookMesh = new THREE.Mesh(
+    new THREE.PlaneGeometry(1.14, 0.833),
+    new THREE.MeshBasicMaterial({ map: notebookTexture, side: THREE.DoubleSide,
+      transparent: true, depthTest: false, depthWrite: false })
+  );
+  notebookMesh.renderOrder = 1900;
+  notebookMesh.frustumCulled = false;
+  notebookMesh.visible = false;
+  scene.add(notebookMesh);
+
+  cursorMesh = new THREE.Mesh(new THREE.RingGeometry(0.009, 0.015, 20),
+    new THREE.MeshBasicMaterial({ color: 0x42eaff, depthTest: false, depthWrite: false,
+      side: THREE.DoubleSide }));
+  cursorMesh.renderOrder = 2000;
+  cursorMesh.visible = false;
+  scene.add(cursorMesh);
+  paintNotebook();
+}
+
+function openNotebook() {
+  if (notebookOpen || !notebookMesh) return;
+  notebookOpen = true;
+  notebookPage = gameResult ? 'outcome' : (evidence.every(e => e.collected) ? 'deduce' : 'brief');
+  notebookHover = null;
+  notebookMesh.position.copy(headPosition)
+    .add(new THREE.Vector3(0, -0.04, -1.12).applyQuaternion(headRotation));
+  notebookMesh.quaternion.copy(headRotation);
+  notebookMesh.visible = true;
+  if (hud) hud.visible = false;
+  paintNotebook();
+}
+
+function closeNotebook() {
+  notebookOpen = false;
+  notebookHover = null;
+  if (notebookMesh) notebookMesh.visible = false;
+  if (cursorMesh) cursorMesh.visible = false;
+  if (hud) hud.visible = true;
+  lastNotice = 'Notebook closed. Pinch empty space to reopen it.';
+  noticeUntil = performance.now() + 2200;
+}
+
+function noteBox(x, y, w, h, color = '#111f2a', border = '#375368') {
+  const c = notebookCtx;
+  c.fillStyle = color;
+  c.fillRect(x, y, w, h);
+  c.strokeStyle = border;
+  c.lineWidth = 3;
+  c.strokeRect(x + 1.5, y + 1.5, w - 3, h - 3);
+}
+
+function noteText(text, x, y, width = 1150, size = 43, color = '#ecf5f8', lineHeight = 60, weight = 'normal') {
+  const c = notebookCtx;
+  c.font = weight + ' ' + size + 'px Arial';
+  c.fillStyle = color;
+  c.textAlign = 'left';
+  c.textBaseline = 'top';
+  const words = String(text).split(/\s+/);
+  let line = '', cursorY = y;
+  for (const word of words) {
+    const test = line ? line + ' ' + word : word;
+    if (line && c.measureText(test).width > width) {
+      c.fillText(line, x, cursorY);
+      cursorY += lineHeight;
+      line = word;
+    } else line = test;
+  }
+  if (line) { c.fillText(line, x, cursorY); cursorY += lineHeight; }
+  return cursorY;
+}
+
+function noteButton(id, label, x, y, w, h, tone = 'default') {
+  const isHover = notebookHover === id;
+  let bg = tone === 'danger' ? '#65242a' : (tone === 'action' ? '#164753' : '#1c2b3b');
+  if (isHover) bg = '#22798a';
+  noteBox(x, y, w, h, bg, isHover ? '#57f2fc' : '#7194a9');
+  noteText(label, x + 19, y + (h - 42) / 2, w - 38, 38,
+    isHover ? '#ffffff' : '#e8f4fc', 46, 'bold');
+  notebookButtons.push({ id, x, y, w, h });
+}
+
+function paintNotebook() {
+  if (!notebookCtx) return;
+  const c = notebookCtx;
+  notebookButtons = [];
+  c.fillStyle = '#08131e';
+  c.fillRect(0, 0, NOTE_W, NOTE_H);
+  c.fillStyle = '#102c3a';
+  c.fillRect(0, 0, NOTE_W, 135);
+  c.fillStyle = '#fa4d58';
+  c.fillRect(0, 0, 18, NOTE_H);
+  noteText('CASEFILE  /  INVESTIGATION 01', 65, 23, 1100, 53, '#ecf7ff', 56, 'bold');
+  noteText('AFTER THE PARTY  |  DALSTON, LONDON  |  NOV 2026', 68, 86, 1280, 29, '#8cd6e2', 32);
+  const total = evidence.filter(e => e.collected).length;
+  noteText('SCORE: ' + points + '   |   EVIDENCE: ' + total + '/3', 975, 33, 375, 34, '#f9d77d', 45, 'bold');
+
+  noteButton('tab:brief', 'BRIEF', 68, 152, 240, 78);
+  noteButton('tab:evidence', 'EVIDENCE', 327, 152, 315, 78);
+  noteButton('tab:deduce', 'DEDUCTIONS', 660, 152, 348, 78);
+  noteButton('tab:outcome', 'VERDICT', 1025, 152, 207, 78);
+  noteButton('close', 'X', 1247, 152, 93, 78, 'danger');
+
+  if (notebookPage === 'brief') paintBriefPage();
+  else if (notebookPage === 'evidence') paintEvidencePage();
+  else if (notebookPage === 'deduce') paintDeductionPage();
+  else paintOutcomePage();
+
+  noteBox(58, 936, 1282, 63, '#102333', '#456879');
+  const footer = caseFeedback || 'LOOK at a notebook button, then PINCH. Select X to return to the crime scene.';
+  noteText(footer, 77, 950, 1245, 31, '#f9d77d', 34, 'bold');
+  notebookTexture.needsUpdate = true;
+}
+
+function paintBriefPage() {
+  noteText('INCIDENT REPORT // 02:20', 75, 270, 1120, 53, '#ffdc89', 62, 'bold');
+  noteText('Aaron Malik, 27, found dead after a house party in a Dalston flat. A knife, tablets and blood on a wall suggest competing explanations.',
+    78, 348, 1230, 40, '#edf5f8', 55);
+  noteBox(75, 515, 1230, 374);
+  noteText('POLICE FILE / INITIAL LEADS', 100, 538, 1110, 43, '#62dae6', 54, 'bold');
+  noteText('Mia Shah, flatmate: on a work call at 02:10. Ben Carter, DJ: left at 01:55. Lewis Ward, friend: says he left at 01:40, but the entry log records his return at 02:09.',
+    100, 602, 1160, 39, '#e5eef5', 52);
+  noteText('Neighbour heard two men arguing and a crash around 02:11. The first pathology note reports blunt-force head trauma, no stab wounds, and nonfatal drug traces.',
+    100, 752, 1160, 36, '#dbeaf4', 49);
+}
+
+function paintEvidencePage() {
+  noteText('BAGGED EVIDENCE // SELECT TO INSPECT', 75, 273, 1220, 51, '#ffdc89', 59, 'bold');
+  const labels = [
+    ['table', '01  /  PILL BOTTLE'],
+    ['floor', '02  /  KITCHEN KNIFE'],
+    ['wall', '03  /  WALL BLOOD']
+  ];
+  for (let i = 0; i < labels.length; i++) {
+    const [id, title] = labels[i];
+    const found = evidence.find(e => e.id === id)?.collected;
+    noteButton('clue:' + id, (found ? 'FILED  ' : 'MISSING  ') + title, 76, 371 + i * 114, 575, 94);
+  }
+  noteBox(685, 369, 624, 476);
+  const item = CASE_EVIDENCE[notebookSelectedClue];
+  const collected = evidence.find(e => e.id === notebookSelectedClue)?.collected;
+  noteText(item.title, 707, 391, 565, 40, '#6eeafa', 50, 'bold');
+  noteText(collected ? item.text : 'Not yet collected. Look for it on the matching real-world surface and pinch to pick it up.',
+    710, 475, 550, 31, '#eaf4f8', 43);
+  if (collected) noteText(item.report, 710, 652, 550, 29, '#ffd18b', 41);
+  noteBox(75, 856, 1234, 63, '#102a36');
+  noteText('TIP: Pills do not prove an overdose. A knife does not prove stabbing. Compare all three findings with the police file.',
+    96, 866, 1170, 30, '#edfbff', 34);
+}
+
+function paintDeductionPage() {
+  if (gameResult) {
+    noteText('CASE COMPLETE', 75, 299, 1140, 58, '#ffdc89', 65, 'bold');
+    noteText('Your verdict is already recorded. Open the VERDICT tab to review the result or replay the case.',
+      80, 405, 1190, 43, '#eaf5f8', 58);
+    return;
+  }
+  if (evidence.some(e => !e.collected)) {
+    noteText('INVESTIGATION NOT COMPLETE', 77, 300, 1240, 55, '#ffdc89', 65, 'bold');
+    noteText('Collect all three physical clues before making deductions. The police briefing and notebook are already available for review.',
+      80, 412, 1210, 45, '#eef7fa', 63);
+    noteText('Collected: ' + evidence.filter(e => e.collected).map(e => e.name).join(', '),
+      80, 610, 1190, 39, '#7ae3ee', 53);
+    return;
+  }
+  const q = QUESTIONS[deductionStep];
+  if (accusationConfirm !== null) {
+    noteText('FINAL ACCUSATION — CONFIRM', 76, 286, 1230, 51, '#ffdc89', 60, 'bold');
+    noteText('You are about to accuse ' + SUSPECTS[accusationConfirm] + '. A wrong accusation FAILS the investigation.',
+      80, 392, 1210, 42, '#eff7fa', 59);
+    noteButton('confirm:accuse', 'CONFIRM ACCUSATION', 82, 595, 760, 100, 'danger');
+    noteButton('confirm:back', 'GO BACK', 880, 595, 425, 100);
+    return;
+  }
+  noteText(q.title, 74, 271, 1210, 55, '#ffdc89', 62, 'bold');
+  noteText(q.question, 79, 353, 1180, 44, '#eaf7fb', 59);
+  for (let i = 0; i < 3; i++) {
+    noteButton('answer:' + i, String.fromCharCode(65 + i) + ' / ' + q.answers[i],
+      78, 478 + i * 123, 1220, 101, i === 2 ? 'action' : 'default');
+  }
+  if (deductionStep === 2) noteText('Warning: an incorrect suspect ends this attempt.', 79, 880, 1150, 36, '#ff9b9b', 43);
+}
+
+function paintOutcomePage() {
+  if (!gameResult) {
+    noteText('VERDICT SEALED', 80, 292, 1190, 61, '#ffdc89', 65, 'bold');
+    noteText('Gather the three clues, then complete the questions in DEDUCTIONS to file your verdict.',
+      81, 420, 1170, 46, '#e8f2f8', 63);
+    return;
+  }
+  const succeeded = gameResult === 'solved';
+  noteText(succeeded ? 'CASE CLOSED / CORRECT VERDICT' : 'INVESTIGATION FAILED',
+    74, 277, 1230, 56, succeeded ? '#84f0bd' : '#ff9297', 65, 'bold');
+  noteText(succeeded ? 'Lewis Ward attacked Aaron after returning to the flat. The head injury was fatal; the pills and knife were misleading clues.'
+    : 'The wrong person was accused. The real killer remains free. Review the entry log, the neighbour account and the pathology note.',
+    80, 389, 1210, 46, '#eef6f8', 65);
+  noteText('FINAL SCORE: ' + points + '/100  |  ' + (succeeded ? (points >= 85 ? 'THREE STARS' : points >= 65 ? 'TWO STARS' : 'ONE STAR') : 'FAILED'),
+    79, 644, 1185, 46, '#ffdc89', 58, 'bold');
+  noteButton('replay', 'REPLAY CASE', 78, 754, 620, 116, 'action');
+  noteButton('tab:evidence', 'REVIEW EVIDENCE', 728, 754, 574, 116);
+}
+
+function updateNotebookGaze() {
+  if (!notebookOpen || !notebookMesh) return;
+  noteRaycaster.set(headPosition, gazeDirection);
+  noteRaycaster.near = 0.1;
+  noteRaycaster.far = 2.0;
+  const hit = noteRaycaster.intersectObject(notebookMesh, false)[0];
+  let hover = null;
+  if (hit && hit.uv) {
+    const px = hit.uv.x * NOTE_W;
+    const py = (1 - hit.uv.y) * NOTE_H;
+    const match = notebookButtons.find(b => px >= b.x && px <= b.x + b.w && py >= b.y && py <= b.y + b.h);
+    hover = match ? match.id : null;
+    cursorMesh.visible = true;
+    cursorMesh.position.copy(hit.point).addScaledVector(gazeDirection, -0.015);
+    cursorMesh.quaternion.copy(notebookMesh.quaternion);
+  } else cursorMesh.visible = false;
+  if (hover !== notebookHover) { notebookHover = hover; paintNotebook(); }
+}
+
+function activateNotebookButton(id) {
+  caseFeedback = '';
+  if (id === 'close') { closeNotebook(); return; }
+  if (id.startsWith('tab:')) {
+    notebookPage = id.slice(4);
+    accusationConfirm = null;
+    paintNotebook();
+    return;
+  }
+  if (id.startsWith('clue:')) {
+    notebookSelectedClue = id.slice(5);
+    paintNotebook();
+    return;
+  }
+  if (id === 'confirm:back') {
+    accusationConfirm = null;
+    paintNotebook();
+    return;
+  }
+  if (id === 'confirm:accuse') {
+    const suspected = accusationConfirm;
+    accusationConfirm = null;
+    if (suspected === QUESTIONS[2].correct) {
+      gameResult = 'solved';
+      caseFeedback = 'Correct suspect identified. Case solved.';
+    } else {
+      points = Math.max(0, points - 50);
+      gameResult = 'failed';
+      caseFeedback = 'Wrong person accused. Investigation failed.';
+    }
+    notebookPage = 'outcome';
+    paintNotebook();
+    return;
+  }
+  if (id.startsWith('answer:') && !gameResult && evidence.every(e => e.collected)) {
+    const choice = Number(id.slice(7));
+    const q = QUESTIONS[deductionStep];
+    if (deductionStep === 2) {
+      accusationConfirm = choice;
+    } else if (choice === q.correct) {
+      deductionStep++;
+      caseFeedback = 'Correct. ' + q.proof;
+    } else {
+      const key = deductionStep + ':' + choice;
+      if (!wrongDeductions.has(key)) {
+        wrongDeductions.add(key);
+        points = Math.max(0, points - q.cost);
+      }
+      caseFeedback = 'Incorrect (-' + q.cost + ' first time). Recheck the police file.';
+    }
+    paintNotebook();
+    return;
+  }
+  if (id === 'replay') {
+    points = 100;
+    deductionStep = 0;
+    gameResult = null;
+    caseFeedback = 'Case reset. Collect the evidence again.';
+    wrongDeductions.clear();
+    accusationConfirm = null;
+    for (const item of evidence) {
+      item.collected = false;
+      item.group.visible = item.placed;
+      if (item.ring) item.ring.visible = true;
+      if (item.surfacePosition) item.group.position.copy(item.surfacePosition);
+      if (item.surfaceQuaternion) item.group.quaternion.copy(item.surfaceQuaternion);
+    }
+    notebookPage = 'brief';
+    paintNotebook();
   }
 }
 
@@ -511,7 +879,8 @@ function onFrame(now, frame) {
   if (viewerPose) {
     updateHeadAndHUD(viewerPose);
     considerPlacement(frame, now);
-    gazeTarget = getGazeTarget();
+    gazeTarget = notebookOpen ? null : getGazeTarget();
+    if (notebookOpen) updateNotebookGaze();
   }
   processHands(frame);
   if (frameNumber % 8 === 0) updateFeedback(now);
