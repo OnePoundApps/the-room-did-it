@@ -2,38 +2,110 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="theme-color" content="#09151e">
-<title>The Room Did It — Case 01: After the Party — v9</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#07121c">
+<meta name="description" content="The Room Did It: a hands-first mixed reality crime investigation set in London, 2026.">
+<title>The Room Did It — Case 01: After the Party | V10</title>
 <style>
-  body { margin: 0; font-family: Arial, sans-serif; background: #0a1420; color: #eaf2fa; }
-  #overlay { position: fixed; top: 0; left: 0; width: 100%; box-sizing: border-box;
-    padding: 14px; text-align: center; background: rgba(0,0,0,0.77); font-size: 15px; }
-  #instructions { position: fixed; left: 50%; top: 23%; transform: translateX(-50%);
-    width: min(89vw, 620px); text-align: center; line-height: 1.55; }
-  #instructions h1 { font-size: clamp(27px, 6vw, 46px); margin: 4px 0; }
-  #instructions small { color: #67d6e5; letter-spacing: 0.12em; }
-  #instructions p { color: #d2e2ec; }
-  #startBtn { position: fixed; left: 50%; top: 72%; transform: translate(-50%, -50%);
-    border: 0; border-radius: 12px; background: #f5c518; color: #111;
-    font-size: 20px; font-weight: bold; padding: 17px 29px; cursor: pointer; z-index: 11; }
-  #startBtn:disabled { opacity: .65; }
+  :root { color-scheme:dark; --ink:#07121c; --teal:#79cbd3; --gold:#ead09b; --text:#e9f1f4; }
+  * { box-sizing:border-box; }
+  body { margin:0; min-height:100vh; min-height:100svh; overflow-y:auto; color:var(--text);
+    font: 400 16px/1.55 system-ui,-apple-system,'Segoe UI',sans-serif;
+    background: radial-gradient(circle at 87% 10%,rgba(23,73,92,.68) 0%,transparent 41%),
+      radial-gradient(circle at 8% 96%,rgba(65,40,43,.50) 0%,transparent 37%),
+      linear-gradient(127deg,#081523 0%,#0a1721 46%,#05111b 100%); }
+  body::before { content:""; position:fixed; inset:0; pointer-events:none; opacity:.14;
+    background:repeating-linear-gradient(95deg,transparent 0,transparent 43px,rgba(210,224,231,.1) 44px,transparent 45px); }
+  .shell { position:relative; z-index:2; max-width:1080px; min-height:100svh; margin:auto;
+    padding:clamp(22px,5vw,55px) clamp(18px,5vw,55px); display:flex; flex-direction:column; }
+  .topline { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:10px;
+    color:#c3d0dc; font-size:.78rem; font-weight:700; letter-spacing:.15em; }
+  .brand { display:inline-flex; align-items:center; gap:10px; }
+  .logo { width:30px; height:30px; display:grid; place-items:center; border:1px solid #caaf74;
+    color:var(--gold); font-size:.9rem; border-radius:4px; }
+  .version { color:#9bdde2; }
+  .content { display:grid; grid-template-columns:minmax(0,1.23fr) minmax(255px,.77fr);
+    gap:clamp(20px,4vw,50px); align-items:center; padding:clamp(22px,5vh,65px) 0 clamp(22px,4vh,45px); }
+  .eyebrow { margin:0 0 15px; font-size:.81rem; font-weight:800; color:#b2e3df; letter-spacing:.21em; }
+  h1 { margin:0; font-size:clamp(2.7rem,6vw,5.25rem); line-height:1.02; letter-spacing:-.06em;
+    font-weight:850; text-transform:uppercase; }
+  h1 span { color:#e1c48a; display:block; }
+  .subhead { font-size:clamp(1rem,1.65vw,1.25rem); color:#97cbd2; margin:19px 0 20px; font-weight:750; letter-spacing:.08em; }
+  .lead { max-width:620px; margin:0 0 20px; font-size:clamp(1.04rem,1.8vw,1.21rem); color:#d7e3eb; }
+  .rule { width:80px; height:3px; background:#e5be78; margin:22px 0; }
+  .facts { display:flex; gap:9px; flex-wrap:wrap; padding:0; margin:20px 0 0; list-style:none; }
+  .facts li { border:1px solid #315263; background:#122d3b; border-radius:5px;
+    padding:7px 11px; font-size:.78rem; letter-spacing:.03em; font-weight:650; }
+  .casecard { position:relative; overflow:hidden; background:linear-gradient(145deg,rgba(27,49,61,.95),rgba(9,25,35,.96));
+    border:1px solid #436171; border-top:3px solid #d3b477; border-radius:11px;
+    padding:clamp(20px,3vw,29px); box-shadow:0 15px 50px rgba(0,0,0,.3); }
+  .casecard::after { content:"CASE 01"; position:absolute; right:-25px; bottom:-15px; opacity:.055;
+    font-weight:900; font-size:5.5rem; white-space:nowrap; transform:rotate(-12deg); pointer-events:none; }
+  .card-label { color:#f0ce92; font-size:.79rem; letter-spacing:.16em; font-weight:800; }
+  .card-title { font-size:1.35rem; font-weight:750; margin:9px 0 15px; }
+  .redline { height:1px; background:#365564; margin:17px 0; }
+  .evidence-line { display:flex; align-items:flex-start; gap:12px; margin:14px 0; font-size:.94rem; }
+  .number { color:#e4c082; font-weight:800; font-size:.8rem; min-width:29px; }
+  .casecard small { color:#a2becb; display:block; margin-top:19px; }
+  .action { margin-top:auto; display:flex; align-items:center; flex-wrap:wrap; gap:15px; padding:3px 0 0; }
+  #startBtn { position:static; transform:none; border:0; background:#e4bf80; color:#09151d;
+    border-radius:7px; padding:16px 24px; font:800 1.05rem system-ui,sans-serif;
+    cursor:pointer; box-shadow:0 8px 30px rgba(0,0,0,.24); min-height:58px; }
+  #startBtn:hover, #startBtn:focus-visible { background:#f5d9aa; outline:2px solid #a5e2eb; outline-offset:3px; }
+  #startBtn:disabled { opacity:.65; cursor:wait; }
+  .action-note { color:#a9c0ce; font-size:.85rem; max-width:440px; }
+  #overlay { margin-top:19px; color:#addce4; font-size:.83rem; min-height:1.7em; overflow-wrap:anywhere; }
+  footer { border-top:1px solid #294250; margin-top:24px; padding-top:14px; color:#86a1b2; font-size:.75rem; }
+  canvas { display:block; }
+  @media (max-width:760px) {
+    .shell{padding:18px 20px 32px;min-height:100svh}
+    .content{grid-template-columns:1fr;padding:35px 0 25px;gap:22px}
+    .casecard{max-width:100%}
+    .action{align-items:stretch;flex-direction:column}
+    #startBtn{width:100%}
+  }
+  @media (max-height:640px) and (min-width:760px) {
+    .content{padding:20px 0;gap:20px} h1{font-size:clamp(2.5rem,5vw,4rem)}
+  }
 </style>
 <script type="importmap">
 { "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js" } }
 </script>
 </head>
 <body>
-<div id="overlay">THE ROOM DID IT — Case 01: After the Party</div>
-<div id="instructions">
-  <small>ONE POUND APPS PRESENTS / LONDON 2026</small>
-  <h1>THE ROOM DID IT</h1>
-  <h2>CASE 01: AFTER THE PARTY</h2>
-  <p>Aaron Malik is dead after a party in Dalston. Was it the drugs, the knife, or an assault?</p>
-  <p>In your Quest 3S, look at your real table, floor and wall to reveal clues. Pinch to bag the drug wrap and knife; inspect the wall blood without taking it down.</p>
-  <p><strong>Pinch empty space to open your notebook.</strong> The redesigned notebook has giant PREVIOUS / NEXT buttons. Touch a button or look and pinch to select. Wrong accusations can end the case.</p>
-</div>
-<button id="startBtn">ENTER THE CRIME SCENE</button>
-<script type="module" src="./main.js?v=9"></script>
+<main class="shell">
+  <header class="topline">
+    <div class="brand"><span class="logo">£1</span><span>ONE POUND APPS  /  INTERACTIVE INVESTIGATIONS</span></div>
+    <span class="version">PLAYABLE CASE BUILD  /  V10.0</span>
+  </header>
+  <div class="content" id="instructions">
+    <section aria-label="Story introduction">
+      <p class="eyebrow">LONDON • 2026 • 02:20 AM</p>
+      <h1>THE ROOM <span>DID IT.</span></h1>
+      <p class="subhead">CASE 01 — AFTER THE PARTY</p>
+      <div class="rule"></div>
+      <p class="lead">A house party in Dalston ends with Aaron Malik dead. Drugs on the table. A knife on the floor. Blood on the wall. Which details are a distraction — and who was really there?</p>
+      <p class="lead">Your real room becomes the investigation. Read the records, challenge the alibis, and decide whether the evidence is strong enough to accuse anyone.</p>
+      <ul class="facts"><li>QUEST 3S • PASSTHROUGH</li><li>HANDS-FIRST</li><li>NO CONTROLLERS</li><li>ONE TRUE SOLUTION</li></ul>
+    </section>
+    <aside class="casecard" aria-label="Case file instructions">
+      <div class="card-label">METROPOLITAN AREA / FICTIONAL CASEFILE</div>
+      <div class="card-title">YOUR FIRST 3 MINUTES</div>
+      <div class="evidence-line"><span class="number">01</span><span>Scan your <b>real table</b> for party drugs and nearby clutter.</span></div>
+      <div class="evidence-line"><span class="number">02</span><span>Find the <b>knife on the floor</b> and inspect what is beside it.</span></div>
+      <div class="evidence-line"><span class="number">03</span><span>Document the <b>blood trace on a wall</b> without picking it up.</span></div>
+      <div class="redline"></div>
+      <div class="evidence-line"><span class="number">04</span><span>Pinch empty space for your notebook. Large PREVIOUS / NEXT controls, evidence reports and deduction choices are inside.</span></div>
+      <small>Play seated in a clear space. Use good room lighting. Props appear only on recognised real surfaces.</small>
+    </aside>
+  </div>
+  <div class="action">
+    <button id="startBtn" type="button">ENTER THE CRIME SCENE</button>
+    <div class="action-note">Hand tracking may take a moment to initialise. Put both controllers down before entering.</div>
+  </div>
+  <div id="overlay" role="status" aria-live="polite">Ready to launch in Meta Quest Browser.</div>
+  <footer>THE ROOM DID IT — an original mixed-reality prototype by One Pound Apps Ltd. Fictional characters and events.</footer>
+</main>
+<script type="module" src="./main.js?v=10.0"></script>
 </body>
 </html>
