@@ -1,111 +1,63 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#07121c">
-<meta name="description" content="The Room Did It: a hands-first mixed reality crime investigation set in London, 2026.">
-<title>The Room Did It — Case 01: After the Party | V10</title>
-<style>
-  :root { color-scheme:dark; --ink:#07121c; --teal:#79cbd3; --gold:#ead09b; --text:#e9f1f4; }
-  * { box-sizing:border-box; }
-  body { margin:0; min-height:100vh; min-height:100svh; overflow-y:auto; color:var(--text);
-    font: 400 16px/1.55 system-ui,-apple-system,'Segoe UI',sans-serif;
-    background: radial-gradient(circle at 87% 10%,rgba(23,73,92,.68) 0%,transparent 41%),
-      radial-gradient(circle at 8% 96%,rgba(65,40,43,.50) 0%,transparent 37%),
-      linear-gradient(127deg,#081523 0%,#0a1721 46%,#05111b 100%); }
-  body::before { content:""; position:fixed; inset:0; pointer-events:none; opacity:.14;
-    background:repeating-linear-gradient(95deg,transparent 0,transparent 43px,rgba(210,224,231,.1) 44px,transparent 45px); }
-  .shell { position:relative; z-index:2; max-width:1080px; min-height:100svh; margin:auto;
-    padding:clamp(22px,5vw,55px) clamp(18px,5vw,55px); display:flex; flex-direction:column; }
-  .topline { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:10px;
-    color:#c3d0dc; font-size:.78rem; font-weight:700; letter-spacing:.15em; }
-  .brand { display:inline-flex; align-items:center; gap:10px; }
-  .logo { width:30px; height:30px; display:grid; place-items:center; border:1px solid #caaf74;
-    color:var(--gold); font-size:.9rem; border-radius:4px; }
-  .version { color:#9bdde2; }
-  .content { display:grid; grid-template-columns:minmax(0,1.23fr) minmax(255px,.77fr);
-    gap:clamp(20px,4vw,50px); align-items:center; padding:clamp(22px,5vh,65px) 0 clamp(22px,4vh,45px); }
-  .eyebrow { margin:0 0 15px; font-size:.81rem; font-weight:800; color:#b2e3df; letter-spacing:.21em; }
-  h1 { margin:0; font-size:clamp(2.7rem,6vw,5.25rem); line-height:1.02; letter-spacing:-.06em;
-    font-weight:850; text-transform:uppercase; }
-  h1 span { color:#e1c48a; display:block; }
-  .subhead { font-size:clamp(1rem,1.65vw,1.25rem); color:#97cbd2; margin:19px 0 20px; font-weight:750; letter-spacing:.08em; }
-  .lead { max-width:620px; margin:0 0 20px; font-size:clamp(1.04rem,1.8vw,1.21rem); color:#d7e3eb; }
-  .rule { width:80px; height:3px; background:#e5be78; margin:22px 0; }
-  .facts { display:flex; gap:9px; flex-wrap:wrap; padding:0; margin:20px 0 0; list-style:none; }
-  .facts li { border:1px solid #315263; background:#122d3b; border-radius:5px;
-    padding:7px 11px; font-size:.78rem; letter-spacing:.03em; font-weight:650; }
-  .casecard { position:relative; overflow:hidden; background:linear-gradient(145deg,rgba(27,49,61,.95),rgba(9,25,35,.96));
-    border:1px solid #436171; border-top:3px solid #d3b477; border-radius:11px;
-    padding:clamp(20px,3vw,29px); box-shadow:0 15px 50px rgba(0,0,0,.3); }
-  .casecard::after { content:"CASE 01"; position:absolute; right:-25px; bottom:-15px; opacity:.055;
-    font-weight:900; font-size:5.5rem; white-space:nowrap; transform:rotate(-12deg); pointer-events:none; }
-  .card-label { color:#f0ce92; font-size:.79rem; letter-spacing:.16em; font-weight:800; }
-  .card-title { font-size:1.35rem; font-weight:750; margin:9px 0 15px; }
-  .redline { height:1px; background:#365564; margin:17px 0; }
-  .evidence-line { display:flex; align-items:flex-start; gap:12px; margin:14px 0; font-size:.94rem; }
-  .number { color:#e4c082; font-weight:800; font-size:.8rem; min-width:29px; }
-  .casecard small { color:#a2becb; display:block; margin-top:19px; }
-  .action { margin-top:auto; display:flex; align-items:center; flex-wrap:wrap; gap:15px; padding:3px 0 0; }
-  #startBtn { position:static; transform:none; border:0; background:#e4bf80; color:#09151d;
-    border-radius:7px; padding:16px 24px; font:800 1.05rem system-ui,sans-serif;
-    cursor:pointer; box-shadow:0 8px 30px rgba(0,0,0,.24); min-height:58px; }
-  #startBtn:hover, #startBtn:focus-visible { background:#f5d9aa; outline:2px solid #a5e2eb; outline-offset:3px; }
-  #startBtn:disabled { opacity:.65; cursor:wait; }
-  .action-note { color:#a9c0ce; font-size:.85rem; max-width:440px; }
-  #overlay { margin-top:19px; color:#addce4; font-size:.83rem; min-height:1.7em; overflow-wrap:anywhere; }
-  footer { border-top:1px solid #294250; margin-top:24px; padding-top:14px; color:#86a1b2; font-size:.75rem; }
-  canvas { display:block; }
-  @media (max-width:760px) {
-    .shell{padding:18px 20px 32px;min-height:100svh}
-    .content{grid-template-columns:1fr;padding:35px 0 25px;gap:22px}
-    .casecard{max-width:100%}
-    .action{align-items:stretch;flex-direction:column}
-    #startBtn{width:100%}
-  }
-  @media (max-height:640px) and (min-width:760px) {
-    .content{padding:20px 0;gap:20px} h1{font-size:clamp(2.5rem,5vw,4rem)}
-  }
-</style>
-<script type="importmap">
-{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js" } }
-</script>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#08131b">
+  <title>PULSE TRACE | One Pound Apps</title>
+  <style>
+    :root{color-scheme:dark;--ink:#e9f2f5;--muted:#94abb9;--cyan:#65dbea;--edge:#244656;--bg:#08131b}
+    *{box-sizing:border-box}html,body{margin:0;min-height:100%;font-family:Inter,Segoe UI,Arial,sans-serif;background:var(--bg);color:var(--ink)}
+    body{background:radial-gradient(ellipse at 82% 10%,#123845aa,transparent 52%),linear-gradient(145deg,#050e14,#0b1c25 68%,#071219)}
+    #landing{max-width:1140px;margin:0 auto;padding:clamp(22px,5vw,72px) clamp(18px,4vw,38px) 35px;display:grid;grid-template-columns:minmax(0,1.12fr) minmax(290px,.88fr);gap:40px;align-items:center}
+    .kicker{font-size:12px;letter-spacing:.24em;color:var(--cyan);font-weight:800}.subtle{font-size:14px;letter-spacing:.08em;color:#adc2cf}
+    h1{font-size:clamp(48px,8vw,106px);letter-spacing:-.085em;line-height:.96;margin:25px 0 24px;font-weight:850}
+    h1 span{display:block;color:#77e0eb}.lede{max-width:560px;color:#bfd1da;font-size:clamp(17px,1.9vw,22px);line-height:1.52}
+    .tagline{margin:32px 0 23px;padding:15px 18px;border-left:2px solid var(--cyan);background:#ffffff07;font-size:17px;font-weight:650}
+    .actions{display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin-top:24px}
+    button{cursor:pointer;font:inherit;border-radius:10px;transition:filter .15s,transform .15s}button:hover{filter:brightness(1.1)}button:active{transform:scale(.98)}
+    #startBtn{border:none;background:var(--cyan);color:#05141d;font-weight:850;padding:17px 27px;letter-spacing:.04em;min-height:56px}
+    #previewBtn,#backBtn{border:1px solid #508194;background:#112734;color:#e4f4f9;padding:16px 21px;font-weight:700;min-height:56px}
+    .note{color:var(--muted);font-size:13px;line-height:1.6;max-width:560px;margin:17px 0 0}
+    #status{font-size:14px;min-height:20px;color:#facb8c;margin-top:15px}
+    .art{position:relative;min-height:485px;display:grid;place-items:center;background:radial-gradient(ellipse,#2c647944 0%,transparent 62%)}
+    .watch{width:min(72%,320px);aspect-ratio:1/1.12;border:16px solid #293943;border-radius:23%;background:linear-gradient(160deg,#122834,#03090e 64%);box-shadow:0 0 0 6px #627781,0 28px 85px #000b, inset 0 0 24px #000a;transform:rotate(-13deg);display:flex;flex-direction:column;justify-content:space-between;padding:24px;color:#84ecf0;position:relative}
+    .watch:before,.watch:after{content:"";position:absolute;left:31%;right:31%;height:100px;background:linear-gradient(90deg,#182a34,#44515c 50%,#1a2d37);z-index:-1;border-radius:12px}.watch:before{bottom:98%}.watch:after{top:98%}
+    .watch small{font-size:13px;color:#8db1bb}.watch .bpm{font-size:60px;font-weight:800;letter-spacing:-.07em}.watch svg{width:100%;height:120px;filter:drop-shadow(0 0 10px #47e4d744)}
+    .clock{font-size:15px;letter-spacing:.16em}.art-label{position:absolute;bottom:15px;right:0;color:#83b7c7;font-size:11px;letter-spacing:.12em}
+    #desktop{display:none;min-height:100vh;padding:24px;max-width:1500px;margin:auto}#desktop header{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:18px}
+    #desktop h2{font-size:28px;margin:0;letter-spacing:.06em}#desktop p{color:var(--muted);margin:4px 0 0}
+    .desk-layout{display:grid;grid-template-columns:minmax(340px,.82fr) minmax(480px,1fr);gap:18px;align-items:start}
+    #desktopScene{border:1px solid var(--edge);border-radius:15px;overflow:hidden;height:620px;position:relative;background:#101f28}
+    #desktopScene canvas{width:100%;height:100%;display:block}#caseCanvas{display:block;width:100%;height:auto;touch-action:none;border:1px solid var(--edge);border-radius:15px;cursor:pointer;box-shadow:0 18px 46px #0006}
+    .scene-label{position:absolute;left:15px;bottom:15px;background:#08141bdd;color:#b2d0da;border:1px solid #315667;border-radius:8px;padding:10px;font-size:12px;max-width:94%}
+    footer{max-width:1140px;margin:auto;padding:15px 38px 36px;color:#678696;font-size:12px}
+    @media(max-width:900px){#landing{grid-template-columns:1fr;gap:4px}.art{min-height:345px;order:-1}.watch{max-width:185px;border-width:10px;padding:14px}.watch .bpm{font-size:34px}.watch svg{height:70px}.watch:before,.watch:after{height:65px}.art-label{bottom:0}.desk-layout{grid-template-columns:1fr}#desktopScene{height:300px}#desktop{padding:13px}#desktop header{flex-wrap:wrap}h1{margin:12px 0}.tagline{margin:18px 0}}
+  </style>
+  <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js"}}</script>
 </head>
 <body>
-<main class="shell">
-  <header class="topline">
-    <div class="brand"><span class="logo">£1</span><span>ONE POUND APPS  /  INTERACTIVE INVESTIGATIONS</span></div>
-    <span class="version">PLAYABLE CASE BUILD  /  V10.0</span>
-  </header>
-  <div class="content" id="instructions">
-    <section aria-label="Story introduction">
-      <p class="eyebrow">LONDON • 2026 • 02:20 AM</p>
-      <h1>THE ROOM <span>DID IT.</span></h1>
-      <p class="subhead">CASE 01 — AFTER THE PARTY</p>
-      <div class="rule"></div>
-      <p class="lead">A house party in Dalston ends with Aaron Malik dead. Drugs on the table. A knife on the floor. Blood on the wall. Which details are a distraction — and who was really there?</p>
-      <p class="lead">Your real room becomes the investigation. Read the records, challenge the alibis, and decide whether the evidence is strong enough to accuse anyone.</p>
-      <ul class="facts"><li>QUEST 3S • PASSTHROUGH</li><li>HANDS-FIRST</li><li>NO CONTROLLERS</li><li>ONE TRUE SOLUTION</li></ul>
+  <main id="landing">
+    <section>
+      <div class="kicker">ONE POUND APPS PRESENTS · CASE 001 · LONDON 2026</div>
+      <h1>PULSE <span>TRACE.</span></h1>
+      <p class="lede">A home invasion. A dead woman. A husband with an alibi. The smartwatch she was wearing tells a different story.</p>
+      <div class="tagline">EVERY HEARTBEAT LEAVES A TRACE.</div>
+      <p class="subtle">HAND-FIRST MIXED-REALITY DETECTIVE THRILLER · QUEST 3 / 3S</p>
+      <div class="actions">
+        <button id="startBtn">ENTER THE CRIME SCENE</button>
+        <button id="previewBtn">PREVIEW THE CASE ON PC</button>
+      </div>
+      <p class="note">Quest: use the headset browser over HTTPS. Set up your room and put both controllers down. Evidence will appear only on recognised surfaces. The casefile also includes reports if room mapping is limited.</p>
+      <div id="status" role="status" aria-live="polite"></div>
     </section>
-    <aside class="casecard" aria-label="Case file instructions">
-      <div class="card-label">METROPOLITAN AREA / FICTIONAL CASEFILE</div>
-      <div class="card-title">YOUR FIRST 3 MINUTES</div>
-      <div class="evidence-line"><span class="number">01</span><span>Scan your <b>real table</b> for party drugs and nearby clutter.</span></div>
-      <div class="evidence-line"><span class="number">02</span><span>Find the <b>knife on the floor</b> and inspect what is beside it.</span></div>
-      <div class="evidence-line"><span class="number">03</span><span>Document the <b>blood trace on a wall</b> without picking it up.</span></div>
-      <div class="redline"></div>
-      <div class="evidence-line"><span class="number">04</span><span>Pinch empty space for your notebook. Large PREVIOUS / NEXT controls, evidence reports and deduction choices are inside.</span></div>
-      <small>Play seated in a clear space. Use good room lighting. Props appear only on recognised real surfaces.</small>
-    </aside>
-  </div>
-  <div class="action">
-    <button id="startBtn" type="button">ENTER THE CRIME SCENE</button>
-    <div class="action-note">Hand tracking may take a moment to initialise. Put both controllers down before entering.</div>
-  </div>
-  <div id="overlay" role="status" aria-live="polite">Ready to launch in Meta Quest Browser.</div>
-  <footer>THE ROOM DID IT — an original mixed-reality prototype by One Pound Apps Ltd. Fictional characters and events.</footer>
-</main>
-<script type="module" src="./main.js?v=10.0"></script>
+    <div class="art" aria-label="Stylised smartwatch hero illustration"><div class="watch"><small>22:24 · ACTIVITY</small><div class="bpm">138 <small>BPM</small></div><svg viewBox="0 0 240 90" fill="none" role="img" aria-label="Heart-rate trace"><path d="M0 60 L30 60 L40 42 L52 68 L70 8 L90 80 L112 55 L125 55 L134 29 L148 65 L163 42 L176 54 L195 35 L211 52 L240 50" stroke="#68dfea" stroke-width="3" stroke-linejoin="round"/></svg><div class="clock">RECORD / 001</div></div><span class="art-label">FICTIONAL TELEMETRY · NOT MEDICAL DATA</span></div>
+  </main>
+  <section id="desktop" aria-label="Desktop case preview">
+    <header><div><h2>PULSE TRACE <span class="subtle">/ CASE 001</span></h2><p>Desktop interaction and story preview — real room scanning requires Quest.</p></div><button id="backBtn">BACK TO START</button></header>
+    <div class="desk-layout"><div id="desktopScene"><div class="scene-label">SCENE PREVIEW · Use your mouse on the casefile to inspect the records and choose a conclusion.</div></div><canvas id="caseCanvas" width="1280" height="900" aria-label="Interactive detective casefile"></canvas></div>
+  </section>
+  <footer>PULSE TRACE · Original fictional investigation · One Pound Apps Ltd · Build PT-0.1 · No real personal health data used.</footer>
+  <script type="module" src="./main.js?v=pt01-20261110"></script>
 </body>
 </html>
